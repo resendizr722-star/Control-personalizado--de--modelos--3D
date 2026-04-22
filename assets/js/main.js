@@ -14,12 +14,14 @@ let mixer, actions = {}, currentAction = null, animationsFolder;
 const timer = new THREE.Timer();
 timer.connect(document);
 
+// 🔥 DETECTAR SI ES GITHUB PAGES
 const isGitHub = window.location.hostname.includes('github.io');
 
-const BASE_PATH = window.location.hostname.includes('github.io')
-    ? '/Modelo-3D-Graficacion - copia/assets/models/fbx/'  // ← CAMBIA ESTO POR TU REPO REAL
+// 🔥 RUTA CORRECTA (SIN ESPACIOS ❌)
+const BASE_PATH = isGitHub
+    ? '/Control-personalizado--de--modelos--3D/assets/models/fbx/' 
     : './assets/models/fbx/';
-
+    
 const animationNames = [
     'Jump',
     'Jumping',
@@ -32,7 +34,7 @@ const animationFiles = [
     'Jumping.fbx',
     'Martelo2.fbx',
     'MediumHit.fbx',
-    'SittingYellx.fbx'
+    'SittingYell.fbx'
 ];
 
 let modelLoaded = false;
