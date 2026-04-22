@@ -17,7 +17,7 @@ timer.connect(document);
 const isGitHub = window.location.hostname.includes('github.io');
 
 const BASE_PATH = window.location.hostname.includes('github.io')
-    ? '/models-animations-3js/assets/models/fbx/'  // ← CAMBIA ESTO POR TU REPO REAL
+    ? '/Modelo-3D-Graficacion - copia/assets/models/fbx/'  // ← CAMBIA ESTO POR TU REPO REAL
     : './assets/models/fbx/';
 
 const animationNames = [
