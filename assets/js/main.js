@@ -9,23 +9,34 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 const manager = new THREE.LoadingManager();
 
 let camera, scene, renderer, stats, object, loader, guiMorphsFolder;
-let mixer;
+let mixer, actions = {}, currentAction = null, animationsFolder;
 
 const timer = new THREE.Timer();
 timer.connect(document);
 
-const params = {
-    asset: 'Samba Dancing'
-};
+const isGitHub = window.location.hostname.includes('github.io');
 
-const assets = [
-    'Samba Dancing',
-    'morph_test',
-    'monkey',
-    'monkey_embedded_texture',
-    'vCube',
+const BASE_PATH = window.location.hostname.includes('github.io')
+    ? '/models-animations-3js/assets/models/fbx/'  // ← CAMBIA ESTO POR TU REPO REAL
+    : './assets/models/fbx/';
+
+const animationNames = [
+    'Jump',
+    'Jumping',
+    'Martelo2',
+    'SittingYell'
 ];
 
+const animationFiles = [
+    'Jump.fbx',
+    'Jumping.fbx',
+    'Martelo2.fbx',
+    'MediumHit.fbx',
+    'SittingYellx.fbx'
+];
+
+let modelLoaded = false;
+let animationsLoaded = 0;
 
 init();
 
@@ -54,8 +65,6 @@ function init() {
     dirLight.shadow.camera.right = 120;
     scene.add(dirLight);
 
-    // scene.add( new THREE.CameraHelper( dirLight.shadow.camera ) );
-
     // ground
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshPhongMaterial({ color: 0x999999, depthWrite: false }));
     mesh.rotation.x = - Math.PI / 2;
@@ -68,7 +77,21 @@ function init() {
     scene.add(grid);
 
     loader = new FBXLoader(manager);
-    loadAsset(params.asset);
+
+    // Load base model
+loader.load(BASE_PATH + 'character.fbx', function (group) {
+        object = group;
+        scene.add(object);
+        object.traverse(function (child) {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }
+        });
+        mixer = new THREE.AnimationMixer(object);
+        modelLoaded = true;
+        loadAnimations();
+    });
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -82,103 +105,84 @@ function init() {
     controls.update();
 
     window.addEventListener('resize', onWindowResize);
+    document.addEventListener('keydown', onKeyDown);
 
     // stats
     stats = new Stats();
     container.appendChild(stats.dom);
 
-    const gui = new GUI();
-    gui.add(params, 'asset', assets).onChange(function (value) {
+    // Create Footer
+    createFooter();
 
-        loadAsset(value);
-
-    });
-
-    guiMorphsFolder = gui.addFolder('Morphs').hide();
-
+    guiMorphsFolder = new GUI().addFolder('Morphs').hide();
+    animationsFolder = new GUI().addFolder('Animations').hide();
 }
 
-function loadAsset(asset) {
+function createFooter() {
 
-    loader.load('./assets/models/fbx/' + asset + '.fbx', function (group) {
+    const footer = document.createElement('footer');
+    footer.className = 'footer-custom';
 
-        if (object) {
+    footer.innerHTML = `
+        <div class="footer-container">
 
-            object.traverse(function (child) {
+            <div class="footer-grid">
 
-                if (child.isSkinnedMesh) {
+                <!-- DEV -->
+                <div class="footer-section">
+                    <h5>👨‍💻 Desarrollador</h5>
+                    <p class="developer-name">Roman Resendiz Vargas</p>
+                    <p class="developer-title">Ingeniería en Sistemas Computacionales</p>
+                </div>
 
-                    child.skeleton.dispose();
+                <!-- ACADEMICO -->
+                <div class="footer-section">
+                    <h5>🎓 Académico</h5>
+                    <p><strong>Maestro:</strong> Pinedo Fernandez Victor Manuel</p>
+                    <p><strong>Materia:</strong> Graficación</p>
+                </div>
 
-                }
+                <!-- CONTACTO -->
+                <div class="footer-section">
+                    <h5>🌐 Contacto</h5>
+                    <a href="https://github.com/resendizr722-star/Control-personalizado--de--modelos--3D" target="_blank">
+                        GitHub: resendizr722-star
+                    </a>
+                    <p class="footer-location">México, 2026</p>
+                </div>
 
-                if (child.material) {
+            </div>
 
-                    const materials = Array.isArray(child.material) ? child.material : [child.material];
-                    materials.forEach(material => {
+            <div class="footer-bottom">
+                © 2026 Roman Resendiz — Proyecto de Animación 3D con Three.js
+            </div>
 
-                        if (material.map) material.map.dispose();
-                        material.dispose();
+        </div>
+    `;
 
-                    });
+    document.body.appendChild(footer);
+}
 
-                }
 
-                if (child.geometry) child.geometry.dispose();
-
-            });
-
-            scene.remove(object);
-
-        }
-
-        //
-
-        object = group;
-
-        if (object.animations && object.animations.length) {
-
-            mixer = new THREE.AnimationMixer(object);
-
-            const action = mixer.clipAction(object.animations[0]);
-            action.play();
-
-        } else {
-
-            mixer = null;
-
-        }
-
-        guiMorphsFolder.children.forEach((child) => child.destroy());
-        guiMorphsFolder.hide();
-
-        object.traverse(function (child) {
-
-            if (child.isMesh) {
-
-                child.castShadow = true;
-                child.receiveShadow = true;
-
-                if (child.morphTargetDictionary) {
-
-                    guiMorphsFolder.show();
-                    const meshFolder = guiMorphsFolder.addFolder(child.name || child.uuid);
-                    Object.keys(child.morphTargetDictionary).forEach((key) => {
-
-                        meshFolder.add(child.morphTargetInfluences, child.morphTargetDictionary[key], 0, 1, 0.01);
-
-                    });
-
-                }
-
+function loadAnimations() {
+    animationFiles.forEach((file, index) => {
+      loader.load(BASE_PATH + file, function (animGroup) {
+            if (animGroup.animations && animGroup.animations.length > 0) {
+                const clip = animGroup.animations[0];
+                const action = mixer.clipAction(clip);
+                actions[animationNames[index]] = action;
             }
-
+            animationsLoaded++;
+            if (animationsLoaded === animationFiles.length) {
+                animationsFolder.show();
+                animationsFolder.children.forEach((child) => child.destroy());
+                animationNames.forEach((name) => {
+                    animationsFolder.add({ [name]: () => switchAnimation(name) }, name);
+                });
+                switchAnimation(animationNames[0]);
+            }
         });
-
-        scene.add(object);
-
     });
-
 }
 
 function onWindowResize() {
@@ -191,6 +195,24 @@ function onWindowResize() {
 }
 
 //
+
+function switchAnimation(clipName) {
+    if (currentAction) {
+        currentAction.fadeOut(0.25);
+    }
+    const action = actions[clipName];
+    if (action) {
+        action.reset().setEffectiveTimeScale(1).fadeIn(0.25).play();
+        currentAction = action;
+    }
+}
+
+function onKeyDown(event) {
+    const key = parseInt(event.key);
+    if (key >= 1 && key <= 5) {
+        switchAnimation(animationNames[key - 1]);
+    }
+}
 
 function animate() {
 
